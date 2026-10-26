@@ -1,0 +1,26 @@
+# Local AI-assistant / editor settings
+.claude/
+.vscode/
+.idea/
+
+# Personal Go lesson notes (kept local)
+docs/go_explained/
+
+# Build output
+*.exe
+/bin/
+/dist/
+/portscanner
+
+# Test & coverage output
+*.out
+*.test
+coverage.html
+
+# Scan results you generate while testing
+results*.json
+results*.csv
+
+# OS junk
+Thumbs.db
+.DS_Store
