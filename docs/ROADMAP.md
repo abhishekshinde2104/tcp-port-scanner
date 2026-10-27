@@ -61,8 +61,10 @@ A worker pool of goroutines fed through channels. Same results, dramatically fas
 **Go you'll learn:** `text/tabwriter`, `encoding/json`, `encoding/csv`, struct tags
 
 ## Stage 7: Stretch goals (pick any)
-- [ ] Progress indicator during long scans
-- [ ] Multiple targets / CIDR ranges (`192.168.1.0/24`) for your home lab
+- [x] Progress indicator during long scans (stderr, only on a live terminal)
+- [x] Multiple targets / CIDR ranges (`192.168.1.0/24`) for your home lab, capped at 4096 hosts
+- [x] ASCII-art "GO PORT SCAN" banner
+- [x] Tests for `scanner` (local fake server), `targets` and `output`
 - [ ] Rate limiting (`-rate 100` packets/sec): be polite to targets
 - [ ] SYN scan with `gopacket` + Npcap (admin rights)
 - [ ] GitHub Actions CI running `go vet`, `go test -race`

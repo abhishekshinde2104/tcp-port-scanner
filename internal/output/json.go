@@ -5,17 +5,17 @@ import (
 	"io"
 
 	"github.com/abhishekshinde2104/tcp-port-scanner/internal/scanner"
+	"github.com/abhishekshinde2104/tcp-port-scanner/internal/targets"
 )
 
 // Report is everything saved to a results file.
 type Report struct {
-	Target   string           `json:"target"`
-	IP       string           `json:"ip"`
+	Targets  []targets.Target `json:"targets"`
 	Open     int              `json:"open"`
 	Closed   int              `json:"closed"`
 	Filtered int              `json:"filtered"`
 	Elapsed  string           `json:"elapsed"`
-	Ports    []scanner.Result `json:"ports"`
+	Results  []scanner.Result `json:"results"`
 }
 
 // JSON writes rep to w as indented JSON.

@@ -13,10 +13,11 @@ import (
 // CSV writes results to w as CSV with a header row.
 func CSV(w io.Writer, results []scanner.Result) error {
 	cw := csv.NewWriter(w)
-	cw.Write([]string{"port", "state", "service", "banner"})
+	cw.Write([]string{"host", "port", "state", "service", "banner"})
 
 	for _, r := range results {
 		cw.Write([]string{
+			r.Host,
 			strconv.Itoa(r.Port),
 			r.State,
 			services.Name(r.Port),

@@ -8,8 +8,10 @@ It was built stage by stage as a learning project in network programming and sec
 ## Features
 
 - **TCP connect scan**: classifies every port as **open**, **closed** or **filtered**
+- **Multiple targets and CIDR ranges**: `scanme.nmap.org,10.0.0.5,192.168.1.0/24`
 - Flexible port lists: `80`, `1-1024`, `22,80,443`, `20-25,80,8000-8100`
-- **Worker pool** of goroutines: 100 ports to a remote host in ~3 s instead of minutes
+- **Worker pool** of goroutines shared across all hosts: 100 ports to a remote host in ~3 s instead of minutes
+- Live **progress bar** while scanning
 - Labels common services (22 → ssh, 443 → https, ...)
 - Grabs service **banners** from open ports (e.g. `SSH-2.0-OpenSSH_6.6.1p1`)
 - Aligned terminal table, plus optional **JSON** or **CSV** output files
@@ -33,7 +35,7 @@ portscanner [flags]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-target` | `127.0.0.1` | Host name or IP address to scan |
+| `-target` | `127.0.0.1` | Comma-separated host names, IPs and CIDR ranges, e.g. `scanme.nmap.org,192.168.1.0/24` (at most 4096 hosts) |
 | `-ports` | `1-1024` | Ports to scan, e.g. `22,80,443` or `1-1024` or `20-25,8080` |
 | `-timeout` | `3s` | Per-port connect timeout, e.g. `500ms`, `2s` |
 | `-workers` | `100` | Number of ports scanned at the same time |
@@ -48,22 +50,29 @@ Scan the default range on your own machine:
 portscanner
 ```
 
-Scan a few ports on Nmap's test host and save JSON:
+Scan two hosts and save JSON:
 
 ```bash
-portscanner -target scanme.nmap.org -ports 20-25,80,443 -o results.json
+portscanner -target scanme.nmap.org,127.0.0.1 -ports 22,80,135 -o results.json
 ```
 
 ```
-tcp-port-scanner v1.0.0
-Scanning scanme.nmap.org (45.33.32.156), 8 ports, 100 workers
-
+scanme.nmap.org (45.33.32.156)
 PORT  STATE  SERVICE  BANNER
 22    open   ssh      SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13
 80    open   http
 
-2 open, 6 closed, 0 filtered in 3.174s
-saved results to results.json
+127.0.0.1
+PORT  STATE  SERVICE  BANNER
+135   open   msrpc
+
+3 open, 2 closed, 1 filtered on 2 hosts in 3.17s
+```
+
+Sweep your own home network for a few common ports (keep the port list short for ranges):
+
+```bash
+portscanner -target 192.168.1.0/24 -ports 22,80,443,3389 -timeout 1s -workers 500
 ```
 
 Show every port, not just open ones, and save CSV:
@@ -72,31 +81,39 @@ Show every port, not just open ones, and save CSV:
 portscanner -ports 130-140 -all -o results.csv
 ```
 
+### Terminal vs pipes
+
+The banner, version line, progress bar and "saved results" messages go to **stderr**. The tables go to **stdout**.
+So `portscanner > scan.txt` saves only the results. The ASCII art and the progress bar only appear when stderr
+is a live terminal, so they never end up in log files.
+
 ### Output files
 
-The terminal shows open ports (or all of them with `-all`). An output file always contains **every** scanned port.
+The terminal shows open ports (or all of them with `-all`). An output file always contains **every** scanned host and port.
 
 **JSON** (shortened)
 ```json
 {
-  "target": "scanme.nmap.org",
-  "ip": "45.33.32.156",
-  "open": 2,
-  "closed": 6,
-  "filtered": 0,
-  "elapsed": "3.174s",
-  "ports": [
-    { "port": 20, "state": "closed" },
-    { "port": 22, "state": "open", "banner": "SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13" }
+  "targets": [
+    { "name": "scanme.nmap.org", "ip": "45.33.32.156" },
+    { "name": "127.0.0.1", "ip": "127.0.0.1" }
+  ],
+  "open": 3,
+  "closed": 2,
+  "filtered": 1,
+  "elapsed": "3.17s",
+  "results": [
+    { "host": "45.33.32.156", "port": 22, "state": "open", "banner": "SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13" },
+    { "host": "45.33.32.156", "port": 135, "state": "filtered" }
   ]
 }
 ```
 
 **CSV**
 ```
-port,state,service,banner
-20,closed,-,
-22,open,ssh,SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13
+host,port,state,service,banner
+45.33.32.156,22,open,ssh,SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13
+45.33.32.156,135,filtered,msrpc,
 ```
 
 An unsupported extension (for example `-o results.txt`) is rejected **before** the scan starts.
@@ -104,9 +121,11 @@ An unsupported extension (for example `-o results.txt`) is rejected **before** t
 ## How it works
 
 1. **Parse** the port list into a sorted, de-duplicated `[]int`. Bad input such as `abc`, `0`, `70000` or `100-50` is rejected.
-2. **Resolve** the target once with DNS, and fail fast on a bad host name.
-3. **Scan** with a worker pool: a feeder goroutine puts ports on a `jobs` channel, N workers call
-   `net.DialTimeout` and send each `Result` on a `results` channel, and the main goroutine collects and sorts them.
+2. **Expand and resolve targets**: CIDR ranges become single addresses (`net/netip`; network and broadcast
+   addresses are skipped), each name is resolved once with DNS, and duplicate IPs are dropped. A bad host name fails fast.
+3. **Scan** with a worker pool: a feeder goroutine puts every `host:port` pair on a `jobs` channel, N workers call
+   `net.DialTimeout` and send each `Result` on a `results` channel, and the main goroutine collects them,
+   updates the progress bar, and sorts them by host, then by port.
 4. **Classify** each port:
    - connection succeeded → **open**
    - connection refused (RST) → **closed**
@@ -120,6 +139,8 @@ An unsupported extension (for example `-o results.txt`) is rejected **before** t
   takes about 2–3 s to report. With a timeout below that, closed ports are misreported as filtered. That is why
   the default timeout is 3 s. Thanks to the worker pool, the cost is about one timeout per scan, not one per port.
 - **Banners:** services such as SSH, FTP and SMTP speak first. HTTP waits for the client, so it shows no banner.
+- **Scanning ranges:** there is no ping-based host discovery, so a host that is down costs a full timeout per port.
+  For a `/24`, use a short port list, a shorter `-timeout`, and more `-workers`.
 - **Connect scan vs SYN scan:** this tool completes the full TCP handshake and needs no admin rights.
   A SYN ("half-open") scan needs raw sockets and is listed as a stretch goal.
 
@@ -140,10 +161,11 @@ tcp_port_scanner/
 ├── cmd/
 │   └── portscanner/      # main.go: CLI flags and wiring
 ├── internal/
-│   ├── scanner/          # connect to one port, banner grab, worker pool
+│   ├── scanner/          # connect to one port, banner grab, worker pool (+ tests with a local fake server)
+│   ├── targets/          # parse hosts and CIDR ranges, resolve them (+ tests)
 │   ├── ports/            # parse "22,80,1000-2000" into a list of ports (+ tests)
 │   ├── services/         # port number → service name (+ tests)
-│   └── output/           # table, JSON, CSV, saving to a file
+│   └── output/           # tables, JSON, CSV, progress bar, ASCII banner (+ tests)
 ├── docs/                 # concepts, roadmap and per-stage write-ups
 ├── go.mod
 └── README.md
@@ -154,6 +176,8 @@ tcp_port_scanner/
 ```bash
 go test ./...
 ```
+
+The scanner tests start a throwaway TCP server on `127.0.0.1`, so they need no network access and never touch other hosts.
 
 ## Learning write-ups
 

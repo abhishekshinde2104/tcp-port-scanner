@@ -32,5 +32,5 @@ func Save(path string, rep Report) error {
 	if strings.ToLower(filepath.Ext(path)) == ".json" {
 		return JSON(f, rep)
 	}
-	return CSV(f, rep.Ports)
+	return CSV(f, rep.Results)
 }

@@ -20,9 +20,16 @@ const (
 
 // Result is the outcome of scanning one port.
 type Result struct {
+	Host   string `json:"host"`
 	Port   int    `json:"port"`
 	State  string `json:"state"`
 	Banner string `json:"banner,omitempty"` // leaves the field out when it's ""
+}
+
+// job is one host:port pair for a worker to scan.
+type job struct {
+	host string
+	port int
 }
 
 // ScanPort tries a TCP connection to host:port and returns its state ("open", "closed" or "filtered") and, if open, the service banner.
@@ -45,9 +52,11 @@ func ScanPort(host string, port int, timeout time.Duration) (string, string) {
 	return Closed, ""
 }
 
-// Scan checks ports on host using workers concurrent goroutines and returns the results sorted by port.
-func Scan(host string, ports []int, timeout time.Duration, workers int) []Result {
-	jobs := make(chan int)       // ports to scan
+// Scan checks every port on every host using workers concurrent goroutines.
+// Results are grouped by host, in the order the hosts were given, and sorted by port.
+// If progress is not nil, it is called after each finished port with (done, total).
+func Scan(hosts []string, ports []int, timeout time.Duration, workers int, progress func(done, total int)) []Result {
+	jobs := make(chan job)       // host:port pairs to scan
 	results := make(chan Result) // finished results
 	var wg sync.WaitGroup
 
@@ -56,17 +65,19 @@ func Scan(host string, ports []int, timeout time.Duration, workers int) []Result
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for port := range jobs {
-				state, banner := ScanPort(host, port, timeout)
-				results <- Result{Port: port, State: state, Banner: banner}
+			for j := range jobs {
+				state, banner := ScanPort(j.host, j.port, timeout)
+				results <- Result{Host: j.host, Port: j.port, State: state, Banner: banner}
 			}
 		}()
 	}
 
-	// FEEDER: put every port into jobs, then close jobs
+	// FEEDER: put every host:port pair into jobs, then close jobs
 	go func() {
-		for _, p := range ports {
-			jobs <- p
+		for _, h := range hosts {
+			for _, p := range ports {
+				jobs <- job{host: h, port: p}
+			}
 		}
 		close(jobs)
 	}()
@@ -76,13 +87,23 @@ func Scan(host string, ports []int, timeout time.Duration, workers int) []Result
 		close(results)
 	}()
 
-	res := make([]Result, 0, len(ports))
+	// COLLECTOR: only this goroutine touches res and calls progress, so no locking is needed
+	total := len(hosts) * len(ports)
+	res := make([]Result, 0, total)
 	for r := range results {
 		res = append(res, r)
+		if progress != nil {
+			progress(len(res), total)
+		}
 	}
 
+	order := make(map[string]int, len(hosts)) // host → its position in hosts
+	for i, h := range hosts {
+		order[h] = i
+	}
 	slices.SortFunc(res, func(a, b Result) int {
-		return cmp.Compare(a.Port, b.Port)
+		// cmp.Or returns the first non-zero comparison: by host first, then by port
+		return cmp.Or(cmp.Compare(order[a.Host], order[b.Host]), cmp.Compare(a.Port, b.Port))
 	})
 	return res
 }
