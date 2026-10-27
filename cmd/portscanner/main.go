@@ -9,12 +9,12 @@ import (
 
 	"github.com/abhishekshinde2104/tcp-port-scanner/internal/ports"
 	"github.com/abhishekshinde2104/tcp-port-scanner/internal/scanner"
+	"github.com/abhishekshinde2104/tcp-port-scanner/internal/services"
 )
 
 const version = "0.0.1"
 
 func main() {
-
 	fmt.Println("tcp-port-scanner", "v"+version)
 
 	// a) flags
@@ -44,7 +44,7 @@ func main() {
 	}
 	ip := addrs[0]
 
-	// d) temporary: show what we'll scan
+	// d) scan and report
 	fmt.Printf("Scanning %s (%s), %d ports, %d workers\n\n", *target, ip, len(portList), *workers)
 	start := time.Now()
 	results := scanner.Scan(ip, portList, *timeout, *workers)
@@ -54,7 +54,7 @@ func main() {
 	for _, r := range results {
 		switch r.State {
 		case scanner.Open:
-			fmt.Printf("%-7d %s\n", r.Port, r.State)
+			fmt.Printf("%-7d %-6s %-12s %s\n", r.Port, r.State, services.Name(r.Port), r.Banner)
 			open++
 		case scanner.Closed:
 			closed++
@@ -64,5 +64,4 @@ func main() {
 
 	}
 	fmt.Printf("\n%d open, %d closed, %d filtered in %v\n", open, closed, filtered, elapsed.Round(time.Millisecond))
-
 }

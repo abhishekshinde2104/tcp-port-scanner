@@ -36,18 +36,18 @@ Turn `"22,80,8000-8010"` into `[]int`, with validation. Your first **unit tests*
 
 ## Stage 4: Concurrency (the big one)
 A worker pool of goroutines fed through channels. Same results, dramatically faster.
-- [ ] Jobs channel → N workers → results channel
-- [ ] `sync.WaitGroup` to know when all workers are done
-- [ ] `-workers` flag; results sorted by port before printing
-- [ ] Benchmark: sequential vs 100 vs 500 workers (record numbers in this doc)
+- [x] Jobs channel → N workers → results channel
+- [x] `sync.WaitGroup` to know when all workers are done
+- [x] `-workers` flag; results sorted by port before printing
+- [x] Benchmark: sequential vs 100 vs 500 workers (record numbers in this doc)
 - [ ] `go test -race ./...` passes
 
 **Go you'll learn:** goroutines, channels, `sync.WaitGroup`, closing channels, data races
 
 ## Stage 5: Service names + banner grabbing
-- [ ] `services.Name(port)`: 22 → ssh, 80 → http, unknown → `-`
-- [ ] For open ports, read the first bytes the service sends (with a read deadline)
-- [ ] Clean the banner (strip newlines, cut length, non-printable chars)
+- [x] `services.Name(port)`: 22 → ssh, 80 → http, unknown → `-`
+- [x] For open ports, read the first bytes the service sends (with a read deadline)
+- [x] Clean the banner (strip newlines, cut length, non-printable chars)
 
 **Go you'll learn:** `conn.SetReadDeadline`, `bufio`, byte slices, maps
 
@@ -72,6 +72,7 @@ A worker pool of goroutines fed through channels. Same results, dramatically fas
 |------|--------|-------|------|
 | Sequential, 1s timeout | scanme.nmap.org | 1-100 | 1m38s (closed misreported as filtered on Windows) |
 | Sequential, 3s timeout | scanme.nmap.org | 20-25 | 14.6s (~2.9s per closed port) |
-| Sequential | 127.0.0.1 | 1-1024 | |
-| 100 workers | 127.0.0.1 | 1-1024 | |
-| 500 workers | 127.0.0.1 | 1-1024 | |
+| **100 workers**, 3s timeout | scanme.nmap.org | 1-100 | **2.97s** (98 closed, correct) |
+| 1 worker | 127.0.0.1 | 1-50 | 43ms (localhost closed ports ~1ms each) |
+| 100 workers | 127.0.0.1 | 1-1024 | 107ms |
+| 500 workers | 127.0.0.1 | 1-1024 | 104ms (no gain: localhost isn't waiting-bound) |

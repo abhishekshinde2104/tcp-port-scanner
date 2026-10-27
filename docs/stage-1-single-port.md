@@ -112,12 +112,16 @@ $l = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 900
 
 ### 🔍 Experiment: Windows has a surprise for you
 
-Time a **closed** port on `127.0.0.1` on Windows. You may find it takes **~2 seconds**
-instead of returning instantly, and with a 1 s timeout it may even show up as **filtered**.
-Windows retries a refused connection a few times before giving up. Linux and macOS don't.
+Time a **closed** port on a **remote** host (e.g. `scanme.nmap.org` port 23) on Windows.
+It takes **~3 seconds** instead of one round trip, and with a 1 s timeout it shows up as
+**filtered**. Windows retries a refused connection before reporting it. Linux and macOS don't.
+Closed ports on `127.0.0.1` are **not** affected: measured at about 1 ms each.
 
-Try a 1 s timeout, then a 3 s timeout, and compare. Write down what you see. This is a good
-thing to mention in your README: it shows you tested and understood your tool's limits.
+Measure with a built binary (`go build`), not `go run`. `go run` includes compile time,
+which can easily add 1–2 s and mislead you.
+
+Try a 1 s timeout, then a 3 s timeout, and compare. This is a good thing to mention in
+your README: it shows you tested and understood your tool's limits.
 
 ---
 
