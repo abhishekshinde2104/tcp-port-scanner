@@ -1,9 +1,12 @@
 package scanner
 
 import (
+	"cmp"
 	"errors"
 	"net"
+	"slices"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -40,14 +43,45 @@ func ScanPort(host string, port int, timeout time.Duration) string {
 
 }
 
-// Scan checks each port on host one after another and returns the results.
-func Scan(host string, ports []int, timeout time.Duration) []Result {
-	res := make([]Result, 0, len(ports))
+// Scan checks ports on host using workers concurrent goroutines and returns the results sorted by port.
+func Scan(host string, ports []int, timeout time.Duration, workers int) []Result {
 
-	for _, port := range ports {
-		state := ScanPort(host, port, timeout)
-		res = append(res, Result{Port: port, State: state})
+	jobs := make(chan int)       // ports to scan
+	results := make(chan Result) //finished results
+	var wg sync.WaitGroup
+
+	// WORKERS: take from jobs, put into results
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for port := range jobs {
+				state := ScanPort(host, port, timeout)
+				results <- Result{Port: port, State: state}
+			}
+		}()
 	}
 
+	// FEEDER: put every port into jobs, then close jobs
+	go func() {
+		for _, p := range ports {
+			jobs <- p
+		}
+		close(jobs)
+	}()
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	res := make([]Result, 0, len(ports))
+	for r := range results {
+		res = append(res, r)
+	}
+
+	slices.SortFunc(res, func(a, b Result) int {
+		return cmp.Compare(a.Port, b.Port)
+	})
 	return res
 }
