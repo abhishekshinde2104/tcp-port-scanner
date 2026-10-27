@@ -13,6 +13,12 @@ const (
 	Filtered = "filtered"
 )
 
+// Result is the outcome of scanning one port.
+type Result struct {
+	Port  int
+	State string
+}
+
 // ScanPort tries a TCP connection to host:port and reports "open", "closed" or "filtered"
 func ScanPort(host string, port int, timeout time.Duration) string {
 
@@ -32,4 +38,16 @@ func ScanPort(host string, port int, timeout time.Duration) string {
 
 	return Closed
 
+}
+
+// Scan checks each port on host one after another and returns the results.
+func Scan(host string, ports []int, timeout time.Duration) []Result {
+	res := make([]Result, 0, len(ports))
+
+	for _, port := range ports {
+		state := ScanPort(host, port, timeout)
+		res = append(res, Result{Port: port, State: state})
+	}
+
+	return res
 }

@@ -10,7 +10,7 @@ import (
 func parsePort(s string) (int, error) {
 	s1 := strings.TrimSpace(s)
 	n, err := strconv.Atoi(s1)
-	
+
 	if err != nil {
 		return 0, fmt.Errorf("invalid port %q", s)
 	}

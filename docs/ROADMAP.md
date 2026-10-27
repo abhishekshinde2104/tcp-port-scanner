@@ -19,18 +19,18 @@ Connect to `host:port`, decide open / closed / filtered. → [write-up](stage-1-
 
 ## Stage 2: Parse port lists
 Turn `"22,80,8000-8010"` into `[]int`, with validation. Your first **unit tests**.
-- [ ] `ports.Parse(spec string) ([]int, error)`
-- [ ] Rejects garbage: `"abc"`, `"0"`, `"70000"`, `"100-50"`, `"1--5"`
-- [ ] Removes duplicates, keeps sorted order
-- [ ] Table-driven tests in `parse_test.go`, run with `go test ./...`
+- [x] `ports.Parse(spec string) ([]int, error)`
+- [x] Rejects garbage: `"abc"`, `"0"`, `"70000"`, `"100-50"`, `"1--5"`
+- [x] Removes duplicates, keeps sorted order
+- [x] Table-driven tests in `parse_test.go`, run with `go test ./...`
 
 **Go you'll learn:** `strings.Split`, `strconv.Atoi`, slices, maps as sets, `testing` package
 
 ## Stage 3: A real CLI, scanned sequentially
 `-target`, `-ports`, `-timeout` flags; resolve the hostname; loop over the ports.
-- [ ] `flag` package with sensible defaults and `-h` help
-- [ ] DNS resolution up front (fail fast on a bad hostname)
-- [ ] Sequential scan works; **time it**: notice how slow it is
+- [x] `flag` package with sensible defaults and `-h` help
+- [x] DNS resolution up front (fail fast on a bad hostname)
+- [x] Sequential scan works; **time it**: notice how slow it is
 
 **Go you'll learn:** `flag`, `net.LookupHost`, `os.Exit`, structs (`Result`)
 
@@ -70,6 +70,8 @@ A worker pool of goroutines fed through channels. Same results, dramatically fas
 
 | Mode | Target | Ports | Time |
 |------|--------|-------|------|
+| Sequential, 1s timeout | scanme.nmap.org | 1-100 | 1m38s (closed misreported as filtered on Windows) |
+| Sequential, 3s timeout | scanme.nmap.org | 20-25 | 14.6s (~2.9s per closed port) |
 | Sequential | 127.0.0.1 | 1-1024 | |
 | 100 workers | 127.0.0.1 | 1-1024 | |
 | 500 workers | 127.0.0.1 | 1-1024 | |
