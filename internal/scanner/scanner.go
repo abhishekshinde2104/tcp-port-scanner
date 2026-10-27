@@ -20,9 +20,9 @@ const (
 
 // Result is the outcome of scanning one port.
 type Result struct {
-	Port   int
-	State  string
-	Banner string
+	Port   int    `json:"port"`
+	State  string `json:"state"`
+	Banner string `json:"banner,omitempty"` // leaves the field out when it's ""
 }
 
 // ScanPort tries a TCP connection to host:port and returns its state ("open", "closed" or "filtered") and, if open, the service banner.

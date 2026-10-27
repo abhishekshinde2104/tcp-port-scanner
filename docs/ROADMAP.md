@@ -6,7 +6,7 @@ Tick the boxes as you finish them.
 ## Stage 0: Setup
 Go module, git repo, folder layout, a "hello" program. → [write-up](stage-0-setup.md)
 - [x] `go mod init` with your GitHub module path
-- [x] `git init` and check that `.gitignore` hides `.claude/`
+- [x] `git init` and check that `.gitignore` hides local tool folders
 - [x] `go run ./cmd/portscanner` prints something
 
 ## Stage 1: Scan ONE port
@@ -52,10 +52,11 @@ A worker pool of goroutines fed through channels. Same results, dramatically fas
 **Go you'll learn:** `conn.SetReadDeadline`, `bufio`, byte slices, maps
 
 ## Stage 6: Output and polish
-- [ ] Aligned table with a summary (`3 open, 990 closed, 31 filtered in 2.4s`)
-- [ ] `-open` to show only open ports
-- [ ] `-o results.json` / `-o results.csv`
-- [ ] README usage section, demo screenshot or GIF, build with `go build`
+- [x] Aligned table with a summary (`3 open, 990 closed, 31 filtered in 2.4s`)
+- [x] Open ports only by default; `-all` shows closed and filtered too
+- [x] `-o results.json` / `-o results.csv` (format from the extension, checked before the scan)
+- [x] CSV cells protected against formula injection from untrusted banners
+- [x] README usage section, demo GIF, build with `go build`
 
 **Go you'll learn:** `text/tabwriter`, `encoding/json`, `encoding/csv`, struct tags
 

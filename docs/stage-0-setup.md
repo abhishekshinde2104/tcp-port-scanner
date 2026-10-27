@@ -78,4 +78,4 @@ Check with `git log`: the author should be you.
 ## ✅ Done when
 
 - `go run ./cmd/portscanner` prints the version line
-- `git log` shows your commit and `.claude/` is not tracked
+- `git log` shows your commit and no editor or tool folders are tracked
